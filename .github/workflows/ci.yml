@@ -1,0 +1,112 @@
+# CI/CD de EcoRuta & EcoGame
+#  - En cada push / pull request: análisis estático, pruebas unitarias,
+#    de widgets y de integración, cobertura y revisión de dependencias.
+#  - En main: compila el APK beta y publica EcoGame (HTML5) en GitHub Pages.
+name: CI-CD EcoRuta
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  calidad-app:
+    name: Análisis y pruebas (app)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ecoruta_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Instalar dependencias
+        run: flutter pub get
+
+      - name: Formato del código (informativo)
+        run: dart format --output=none --set-exit-if-changed lib test
+        continue-on-error: true
+
+      - name: Análisis de código estático
+        run: flutter analyze
+
+      - name: Pruebas unitarias, de widgets y de integración + cobertura
+        run: flutter test --coverage --reporter expanded
+
+      - name: Dependencias desactualizadas (informativo)
+        run: flutter pub outdated
+        continue-on-error: true
+
+      - name: Guardar reporte de cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: ecoruta_app/coverage/lcov.info
+
+  secretos:
+    name: Búsqueda de secretos filtrados
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  apk-beta:
+    name: Compilar APK beta
+    needs: [calidad-app]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ecoruta_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generar carpeta android si aún no está en el repositorio
+        run: '[ -d android ] || flutter create --platforms android --org mx.ecoruta .'
+      - run: flutter pub get
+      - name: APK ofuscado
+        run: >
+          flutter build apk --release --obfuscate --split-debug-info=build/simbolos
+          --dart-define=URL_JUEGO=https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ecoruta-beta-apk
+          path: ecoruta_app/build/app/outputs/flutter-apk/app-release.apk
+
+  publicar-juego:
+    name: Publicar EcoGame en GitHub Pages
+    # Actívalo cuando ya esté la exportación HTML5 de Construct en ecogame/web
+    if: github.ref == 'refs/heads/main' && vars.PUBLICAR_JUEGO == 'si'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ecogame/web
+      - id: despliegue
+        uses: actions/deploy-pages@v4

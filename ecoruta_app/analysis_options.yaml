@@ -1,0 +1,26 @@
+# Análisis de código estático: se ejecuta con `flutter analyze` en local y en CI.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-raw-types: true
+  errors:
+    # Cualquier advertencia rompe el pipeline
+    unused_import: error
+    dead_code: error
+    # Las APIs que Flutter marca como obsoletas en versiones nuevas no rompen el CI
+    deprecated_member_use: ignore
+  exclude:
+    - lib/firebase_options.dart
+
+linter:
+  rules:
+    - avoid_print
+    - prefer_const_constructors
+    - prefer_final_locals
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - cancel_subscriptions
+    - close_sinks
+    - use_build_context_synchronously

@@ -1,0 +1,18 @@
+# Flutter / Dart
+ecoruta_app/.dart_tool/
+ecoruta_app/build/
+ecoruta_app/coverage/
+ecoruta_app/.flutter-plugins
+ecoruta_app/.flutter-plugins-dependencies
+ecoruta_app/android/key.properties
+ecoruta_app/android/app/google-services.json
+ecoruta_app/ios/Runner/GoogleService-Info.plist
+*.jks
+*.keystore
+.env
+
+# Sistema
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// Reglas de seguridad de EcoRuta. Se publican con:  firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function conSesion() {
+      return request.auth != null;
+    }
+
+    function esDueno(uid) {
+      return conSesion() && request.auth.uid == uid;
+    }
+
+    // Valida cada acción: solo campos conocidos, tipos y rangos correctos.
+    function accionValida(d) {
+      return d.keys().hasOnly(['tipo', 'cantidad', 'fecha', 'notaCifrada'])
+        && d.tipo in ['reciclaje', 'transporte', 'agua', 'energia', 'reforestacion']
+        && d.cantidad is int && d.cantidad >= 1 && d.cantidad <= 1000
+        && d.fecha is int
+        && (!('notaCifrada' in d) || (d.notaCifrada is string && d.notaCifrada.size() <= 1024));
+    }
+
+    // Cada usuario solo ve y escribe SUS acciones.
+    match /usuarios/{uid}/acciones/{accionId} {
+      allow read, delete: if esDueno(uid);
+      allow create: if esDueno(uid) && accionValida(request.resource.data);
+      allow update: if false;
+    }
+
+    // Catálogo público de solo lectura (se llena desde la consola de Firebase).
+    match /puntos_reciclaje/{id} {
+      allow read: if conSesion();
+      allow write: if false;
+    }
+
+    // Todo lo demás está cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

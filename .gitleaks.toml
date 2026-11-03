@@ -1,0 +1,8 @@
+# Las llaves de cliente de Firebase (firebase_options.dart) son identificadores
+# públicos por diseño; la protección real son las reglas de Firestore.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Configuración pública de Firebase"
+paths = ['''ecoruta_app/lib/firebase_options\.dart''']
